@@ -23,6 +23,40 @@ Tools/
 │   ├── notify.ps1        # Windows 实现（PowerShell）
 │   └── README.md
 │
+├── wmk/                  # 图片/PDF 水印（vendored from BerBai/WMK @ 793c54b, GPL-2.0）
+│   ├── LICENSE           # GPL v2，原样保留
+│   ├── UPSTREAM.md       # vendor 元数据：URL/SHA/copy-date/license
+│   ├── marker.py         # 图片水印（Makefile 暴露）
+│   ├── pdf_mark.py       # PDF 水印（保留，不暴露 Makefile target）
+│   ├── pdfc.py           # PDF 压缩（基于 ghostscript，保留，不暴露）
+│   ├── notionnext.py     # 用途未文档化（保留，不暴露）
+│   ├── font/             # 默认字体（庞门正道标题体）
+│   └── example/          # 示例图片
+│
+├── jar-runner/           # Linux 上 Java jar 进程生命周期管理（vendored from BerBai/recode @ 2f6f57f）
+│   ├── auto_jar.sh       # 简化版：开机/手动一键启动
+│   ├── run_jar.sh        # 完整版：start/stop/restart/status/backup
+│   ├── README.md
+│   └── UPSTREAM.md
+│
+├── jar-docker/           # jar/war 自动构建 Docker 镜像并部署（vendored from BerBai/recode @ 2f6f57f）
+│   ├── jar_docker_run.sh # 基镜像 java:8，端口 8080:8080
+│   ├── war_docker_run.sh # 基镜像 tomcat，端口 8082:8080
+│   ├── README.md
+│   └── UPSTREAM.md
+│
+├── service-monitor/      # 服务存活监控 + 自愈（vendored from BerBai/recode @ 2f6f57f）
+│   ├── tomcat_single.sh  # 单 tomcat：进程 + 页面双重监控，死则重启
+│   ├── tomcat_multi.sh   # 多 tomcat URL 轮询监控
+│   ├── jar_multi.sh      # 多 jar 进程监控
+│   ├── README.md
+│   └── UPSTREAM.md
+│
+├── mongodb-init/         # MongoDB SysV init.d 风格管理脚本（vendored from BerBai/recode @ 2f6f57f）
+│   ├── mongodb.sh        # start/stop/restart/status/repair
+│   ├── README.md
+│   └── UPSTREAM.md
+│
 ├── docs/                 # GitHub Pages 源（→ tools.125520.xyz, just-the-docs Jekyll 主题）
 │   ├── _config.yml      # Jekyll + just-the-docs 配置
 │   ├── _sass/color_schemes/tools.scss   # 主色覆盖 #ce4040
@@ -70,6 +104,11 @@ make clean         # 清理 dist/
 | npm 离线打包 | `npm-offline/npm_offline_install.sh` | Linux, macOS | 把 npm 包及其依赖打成 tar.gz，离线机解压即可用 | `make npm-bundle` | [查看](./npm-offline/README.md) |
 | anyrouter 本地代理 | `newapi/anyrouter_local_proxy.ts` | Linux, macOS, Windows | 给 Claude Code 等客户端套一层本地代理，转发到上游 | `make proxy` / `make proxy-bg` | [查看](./newapi/README.md) |
 | Claude Code 通知 hook | `claude-notify/notify.py` `claude-notify/notify.ps1` | macOS / Windows（本地通知）；任意（仅 mac 版支持 Bark 推送） | 任务完成/需审批时弹本地通知 + 可选 Bark 推送，由 Claude Code hook 自动调用 | —（hook 触发） | [查看](./claude-notify/README.md) |
+| WMK 水印工具 | `wmk/marker.py` `wmk/pdf_mark.py` `wmk/pdfc.py` | 任意（Python 3 + Pillow；`pdfc.py` 还需 ghostscript） | 图片/PDF 水印 + PDF 压缩（vendored from [BerBai/WMK](https://github.com/BerBai/WMK) @ 793c54b, GPL-2.0；仅 `marker.py` 暴露 Makefile target，其它脚本可直接 `python3 wmk/<script>.py` 调用） | `make wmk-deps` / `make wmk-mark` | [查看](./wmk/README.md) |
+| jar-runner | `jar-runner/auto_jar.sh` `jar-runner/run_jar.sh` | Linux | 服务器侧 Java jar 进程生命周期管理：`auto_jar.sh` 一键启动；`run_jar.sh` 提供 start/stop/restart/status/backup（vendored from [BerBai/recode](https://github.com/BerBai/recode) @ 2f6f57f） | — | [查看](./jar-runner/README.md) |
+| jar-docker | `jar-docker/jar_docker_run.sh` `jar-docker/war_docker_run.sh` | Linux | jar/war 一键自动化打 Docker 镜像并运行；jar 用 `java:8` 基镜像、war 用 `tomcat` 基镜像（vendored from [BerBai/recode](https://github.com/BerBai/recode) @ 2f6f57f） | — | [查看](./jar-docker/README.md) |
+| service-monitor | `service-monitor/tomcat_single.sh` `service-monitor/tomcat_multi.sh` `service-monitor/jar_multi.sh` | Linux | 服务存活监控 + 自愈：单 tomcat 进程/页面双检、多 tomcat URL 轮询、多 jar 进程监控；均为 `while true` 守护进程（vendored from [BerBai/recode](https://github.com/BerBai/recode) @ 2f6f57f） | — | [查看](./service-monitor/README.md) |
+| mongodb-init | `mongodb-init/mongodb.sh` | Linux | MongoDB SysV `init.d` 风格管理脚本，支持 `start\|stop\|restart\|status\|repair`，典型部署到 `/etc/init.d/mongodb`（vendored from [BerBai/recode](https://github.com/BerBai/recode) @ 2f6f57f） | — | [查看](./mongodb-init/README.md) |
 
 > "支持平台"列说明：列出脚本能直接运行的平台。Linux 上的 bash 脚本一般在 macOS 也能跑（注意 macOS 默认 bash 3.x，必要时 `brew install bash`）；Windows 需通过 WSL 运行 bash 脚本。如果同一功能未来加了 PowerShell / .ps1 实现，把对应平台加进来即可。
 
@@ -169,6 +208,11 @@ make docs-serve                      # → http://127.0.0.1:4000
 | `bash` ≥ 4 | npm-offline 等 bash 脚本 | macOS 默认是 3.x，建议 `brew install bash`；Windows 用 WSL |
 | `node` ≥ 14 + `npx` | newapi 代理、npm 离线包 | https://nodejs.org |
 | `verdaccio` | npm 离线包（已 bundle，无需单独装） | — |
+| `python3` + `Pillow` | wmk 图片水印 | `make wmk-deps`（即 `pip install Pillow`） |
+| `ghostscript` | wmk 的 `pdfc.py` PDF 压缩 | macOS: `brew install ghostscript`；Linux: `apt install ghostscript`（仅手动调用 `python3 wmk/pdfc.py` 时需要）|
+| `java` | jar-runner / jar-docker 跑 Java 制品 | 目标服务器自备（这些脚本是上传到服务器执行的运维脚本，本地无需安装） |
+| `docker` | jar-docker 构建/运行容器 | 目标服务器自备（同上，本地无需安装） |
+| `mongod` | mongodb-init 管理 MongoDB | 目标服务器自备（同上，本地无需安装） |
 
 ---
 

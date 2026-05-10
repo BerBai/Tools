@@ -107,6 +107,22 @@ clean-all: clean proxy-stop ## 清理产物 + 停止后台进程
 	@echo "all cleaned"
 
 # ============================================================
+# wmk 水印工具（vendored from BerBai/WMK @ 793c54b, GPL-2.0）
+# ============================================================
+
+.PHONY: wmk-deps
+wmk-deps: ## 安装 wmk 依赖（Pillow）
+	pip install Pillow
+
+.PHONY: wmk-mark
+wmk-mark: ## 给图片加水印（FILE=path MARK=text [EXTRA="-c '#FF0000' -p center,center"]）；输出到 wmk/output/
+	@if [ -z "$(FILE)" ] || [ -z "$(MARK)" ]; then \
+		echo "Usage: make wmk-mark FILE=<image> MARK=<text> [EXTRA=...]"; \
+		exit 2; \
+	fi
+	cd wmk && python3 marker.py -f $(abspath $(FILE)) -m $(MARK) $(EXTRA)
+
+# ============================================================
 # Pages / docs (tools.125520.xyz, GitHub Pages + just-the-docs)
 # ============================================================
 
