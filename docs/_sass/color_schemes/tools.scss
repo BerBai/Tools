@@ -1,7 +1,5 @@
 // Tools — Just the Docs custom color scheme
-// 继承 light scheme，覆盖关键色为 #ce4040 (与原 Pages 视觉一致)
-
-@import "./light";
+// just-the-docs 自动先 import 默认 light scheme，本文件只覆盖变量与少量 selector
 
 // 主色：链接 / 按钮 / 选中态
 $link-color: #ce4040;
