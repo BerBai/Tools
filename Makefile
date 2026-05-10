@@ -11,7 +11,7 @@ SHELL := /usr/bin/env bash
 
 # ---- 可覆盖参数 ----
 PKG       ?= lodash@4
-UPSTREAM  ?= https://your.upstream
+UPSTREAM  ?= https://YOUR_ANYROUTER_UPSTREAM
 PORT      ?= 5000
 PROXY_LOG ?= /tmp/anyrouter-proxy.log
 PROXY_PID ?= /tmp/anyrouter-proxy.pid
