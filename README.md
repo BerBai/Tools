@@ -65,11 +65,11 @@ make clean         # 清理 dist/
 
 ## 脚本清单
 
-| 脚本 | 路径 | 支持平台 | 用途 | Makefile target |
-|------|------|------|------|------|
-| npm 离线打包 | `npm-offline/npm_offline_install.sh` | Linux, macOS | 把 npm 包及其依赖打成 tar.gz，离线机解压即可用 | `make npm-bundle` |
-| anyrouter 本地代理 | `newapi/anyrouter_local_proxy.ts` | Linux, macOS, Windows | 给 Claude Code 等客户端套一层本地代理，转发到上游 | `make proxy` / `make proxy-bg` |
-| Claude Code 通知 hook | `claude-notify/notify.py` `claude-notify/notify.ps1` | macOS / Windows（本地通知）；任意（仅 mac 版支持 Bark 推送） | 任务完成/需审批时弹本地通知 + 可选 Bark 推送，由 Claude Code hook 自动调用 | —（hook 触发） |
+| 脚本 | 路径 | 支持平台 | 用途 | Makefile target | 文档 |
+|------|------|------|------|------|------|
+| npm 离线打包 | `npm-offline/npm_offline_install.sh` | Linux, macOS | 把 npm 包及其依赖打成 tar.gz，离线机解压即可用 | `make npm-bundle` | [查看](./npm-offline/README.md) |
+| anyrouter 本地代理 | `newapi/anyrouter_local_proxy.ts` | Linux, macOS, Windows | 给 Claude Code 等客户端套一层本地代理，转发到上游 | `make proxy` / `make proxy-bg` | [查看](./newapi/README.md) |
+| Claude Code 通知 hook | `claude-notify/notify.py` `claude-notify/notify.ps1` | macOS / Windows（本地通知）；任意（仅 mac 版支持 Bark 推送） | 任务完成/需审批时弹本地通知 + 可选 Bark 推送，由 Claude Code hook 自动调用 | —（hook 触发） | [查看](./claude-notify/README.md) |
 
 > "支持平台"列说明：列出脚本能直接运行的平台。Linux 上的 bash 脚本一般在 macOS 也能跑（注意 macOS 默认 bash 3.x，必要时 `brew install bash`）；Windows 需通过 WSL 运行 bash 脚本。如果同一功能未来加了 PowerShell / .ps1 实现，把对应平台加进来即可。
 
@@ -107,7 +107,7 @@ cd npm-offline-bundle
 **前台运行：**
 ```bash
 make proxy                                    # 用默认 upstream
-make proxy UPSTREAM=https://your.upstream     # 自定义 upstream
+make proxy UPSTREAM=https://YOUR_ANYROUTER_UPSTREAM     # 自定义 upstream
 make proxy PORT=5001                          # 自定义端口
 ```
 
