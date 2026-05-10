@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Tools — 个人脚本工具集</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="Cache-Control" content="no-siteapp">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta name="theme-color" content="#ce4040">
+    <meta name="description" content="个人脚本工具集：Claude Code 通知 hook、anyrouter 本地代理、npm 离线打包、Weibo 图片找原作者。">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main>
+        <header class="hero">
+            <h1>Tools</h1>
+            <p class="tagline">个人脚本与小工具集</p>
+            <p class="meta">
+                <a href="https://github.com/BerBai/Tools" target="_blank" rel="noopener">GitHub 仓库 →</a>
+            </p>
+        </header>
+
+        <section class="grid">
+
+            <article class="card card--script">
+                <header>
+                    <span class="badge">脚本</span>
+                    <h2>claude-notify</h2>
+                </header>
+                <p>Claude Code 任务完成 / 需审批通知 hook，本地 toast + 可选 Bark 推送。</p>
+                <p class="platforms">macOS · Windows</p>
+                <a class="card__link" href="https://github.com/BerBai/Tools/tree/main/claude-notify" target="_blank" rel="noopener">查看文档 →</a>
+            </article>
+
+            <article class="card card--script">
+                <header>
+                    <span class="badge">脚本</span>
+                    <h2>newapi</h2>
+                </header>
+                <p>anyrouter 本地代理，把客户端 API 请求转发到指定上游，便于 hook 与多模型切换。</p>
+                <p class="platforms">macOS · Linux · Windows</p>
+                <a class="card__link" href="https://github.com/BerBai/Tools/tree/main/newapi" target="_blank" rel="noopener">查看文档 →</a>
+            </article>
+
+            <article class="card card--script">
+                <header>
+                    <span class="badge">脚本</span>
+                    <h2>npm-offline</h2>
+                </header>
+                <p>把任意 npm 包及其完整依赖打成 tar.gz，离线机解压即可 npm install。</p>
+                <p class="platforms">macOS · Linux</p>
+                <a class="card__link" href="https://github.com/BerBai/Tools/tree/main/npm-offline" target="_blank" rel="noopener">查看文档 →</a>
+            </article>
+
+            <article class="card card--web">
+                <header>
+                    <span class="badge badge--web">Web</span>
+                    <h2>Find who he/she is</h2>
+                </header>
+                <p>给一张微博图片链接，反查出原作者主页。从老 tools 仓库迁来的小工具。</p>
+                <p class="platforms">浏览器 · 无需后端</p>
+                <a class="card__link card__link--primary" href="weibo-finder/">立即使用 →</a>
+            </article>
+
+        </section>
+
+        <footer>
+            <p>Source-available · MIT-style · maintained by <a href="https://github.com/BerBai" target="_blank" rel="noopener">@BerBai</a></p>
+        </footer>
+    </main>
+</body>
+</html>

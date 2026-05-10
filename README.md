@@ -2,6 +2,8 @@
 
 个人脚本仓库。集中管理跨平台的命令行小工具、安装脚本、本地代理等，配套一份 `Makefile` 作为统一入口。
 
+🌐 **在线展示**：<https://tools.125520.xyz> · 含 [Find who he/she is](https://tools.125520.xyz/weibo-finder/)（微博图片找原作者）等纯前端小工具
+
 ---
 
 ## 目录结构
@@ -21,6 +23,13 @@ Tools/
 │   ├── notify.ps1        # Windows 实现（PowerShell）
 │   └── README.md
 │
+├── docs/                 # GitHub Pages 源（→ tools.125520.xyz）
+│   ├── index.html        # 落地页，导航各脚本与 Web 工具
+│   ├── style.css
+│   ├── CNAME             # 自定义域名
+│   ├── weibo-finder/     # 微博图片找原作者（纯前端，从老 tools 仓库迁来）
+│   └── findWB/           # 老路径兼容（meta refresh → weibo-finder/）
+│
 ├── dist/                 # 脚本产出物（不要手动改，可随时清理）
 │   ├── npm-offline-bundle/
 │   └── npm-offline-bundle.tar.gz
@@ -32,6 +41,7 @@ Tools/
 - **所有脚本一律放功能命名的子目录**（kebab-case），不按平台分文件夹。同一功能的多平台实现放在同一目录里（例如 `foo/foo.sh` + `foo/foo.ps1`）。
 - **平台支持情况**通过下方"脚本清单"表格的"支持平台"列体现。
 - **可执行产物** → 一律放 `dist/`，可随时 `make clean`。
+- **纯前端 Web 小工具** → 一律放 `docs/<工具名>/`，会随 GitHub Pages 一起部署到 `tools.125520.xyz`。
 - 每个子目录可有自己的 `README.md` 解释细节，顶层 README 只做索引。
 
 ---
