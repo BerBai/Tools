@@ -1,0 +1,14 @@
+source "https://rubygems.org"
+
+# 与 GitHub Pages 实际部署环境对齐 (固定版本由 github-pages gem 决定)
+gem "github-pages", group: :jekyll_plugins
+
+# remote_theme 需要的插件
+group :jekyll_plugins do
+  gem "jekyll-remote-theme"
+  gem "jekyll-seo-tag"
+end
+
+# Windows / JRuby 兼容
+gem "tzinfo-data", platforms: [:mingw, :mswin, :x64_mingw, :jruby]
+gem "wdm", "~> 0.1.1", :platforms => [:mingw, :mswin, :x64_mingw]

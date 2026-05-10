@@ -1,0 +1,39 @@
+title: Tools
+description: 个人脚本与小工具集
+remote_theme: just-the-docs/just-the-docs
+url: "https://tools.125520.xyz"
+
+# 主题与导航
+color_scheme: tools
+search_enabled: true
+heading_anchors: true
+back_to_top: true
+back_to_top_text: "回到顶部"
+
+# Just the Docs aux nav (右上角)
+aux_links:
+  GitHub: "https://github.com/BerBai/Tools"
+aux_links_new_tab: true
+
+# 自定义页脚
+footer_content: 'Source-available · MIT-style · maintained by <a href="https://github.com/BerBai" target="_blank">@BerBai</a>'
+
+# Jekyll 插件 (GH Pages 白名单)
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+# 不要让 Jekyll 处理 weibo-finder / findWB 内部 (它们是纯静态 web 资源)
+# 默认行为已是"无 front-matter 的文件原样拷贝"，这里只是显式 keep
+keep_files:
+  - weibo-finder
+  - findWB
+
+# 排除任务/spec 等仓库内部文件 (虽然它们在仓库根，docs 是 source 也用不到，但 GH Pages 偶尔会扫到)
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - .sass-cache
+  - .jekyll-cache

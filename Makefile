@@ -105,3 +105,15 @@ clean: ## 清理 dist/ 产物
 .PHONY: clean-all
 clean-all: clean proxy-stop ## 清理产物 + 停止后台进程
 	@echo "all cleaned"
+
+# ============================================================
+# Pages / docs (tools.125520.xyz, GitHub Pages + just-the-docs)
+# ============================================================
+
+.PHONY: sync-docs
+sync-docs: ## 把仓库根各 README 同步到 docs/<tool>.md（推 main 前手跑一次）
+	@bash scripts/sync-docs.sh
+
+.PHONY: docs-serve
+docs-serve: ## 本地预览 Pages（需先 cd docs && bundle install）
+	cd docs && bundle exec jekyll serve --livereload

@@ -23,12 +23,18 @@ Tools/
 │   ├── notify.ps1        # Windows 实现（PowerShell）
 │   └── README.md
 │
-├── docs/                 # GitHub Pages 源（→ tools.125520.xyz）
-│   ├── index.html        # 落地页，导航各脚本与 Web 工具
-│   ├── style.css
-│   ├── CNAME             # 自定义域名
-│   ├── weibo-finder/     # 微博图片找原作者（纯前端，从老 tools 仓库迁来）
-│   └── findWB/           # 老路径兼容（meta refresh → weibo-finder/）
+├── docs/                 # GitHub Pages 源（→ tools.125520.xyz, just-the-docs Jekyll 主题）
+│   ├── _config.yml      # Jekyll + just-the-docs 配置
+│   ├── _sass/color_schemes/tools.scss   # 主色覆盖 #ce4040
+│   ├── Gemfile          # 本地预览用 (bundle exec jekyll serve)
+│   ├── index.md         # 首页
+│   ├── claude-notify.md # 由 make sync-docs 从 claude-notify/README.md 同步
+│   ├── newapi.md        # 同上
+│   ├── npm-offline.md   # 手写 stub，README 落地后由 sync-docs 接管
+│   ├── weibo-finder.md  # sidebar 外链项 → /weibo-finder/
+│   ├── CNAME            # 自定义域名
+│   ├── weibo-finder/    # 微博图片找原作者（纯前端，从老 tools 仓库迁来）
+│   └── findWB/          # 老路径兼容（meta refresh → weibo-finder/）
 │
 ├── dist/                 # 脚本产出物（不要手动改，可随时清理）
 │   ├── npm-offline-bundle/
@@ -114,6 +120,29 @@ make proxy-log    # tail 日志
 
 详细 hook 配置示例见 `newapi/README.md`。
 
+### 3. Pages 站点（`docs/`，→ <https://tools.125520.xyz>）
+
+GitHub Pages 部署模式："Deploy from a branch" → `main` / `/docs`，主题为 [just-the-docs](https://just-the-docs.com)，无 GitHub Actions workflow（GH Pages 自动跑 Jekyll 构建）。
+
+**改完工具 README 后同步到 Pages**：
+```bash
+make sync-docs                       # 把各 README.md 同步到 docs/<tool>.md（含 front-matter 注入 + 相对链接重写）
+git add docs/ && git commit -m "docs: sync READMEs"
+git push                             # GH Pages 自动 build
+```
+
+**本地预览**：
+```bash
+cd docs && bundle install            # 首次：装 github-pages gem
+make docs-serve                      # → http://127.0.0.1:4000
+```
+
+**改主色 / 改主题**：编辑 `docs/_sass/color_schemes/tools.scss`。
+
+**新工具加进 sidebar**：
+- 有 README → 在 `scripts/sync-docs.sh` 末尾加 `sync_one "<tool>" <nav_order> "<desc>"`，跑一次 `make sync-docs`
+- 暂无 README → 手写 `docs/<tool>.md`（含 `nav_order` front-matter）占位，README 落地后 sync-docs 自动接管
+
 ---
 
 ## 新增脚本
@@ -126,6 +155,7 @@ make proxy-log    # tail 日志
 4. **注册到 Makefile**：在 `Makefile` 加一个 target，并在 target 行尾加 `## 描述`（自动出现在 `make help`）
 5. **更新本 README 的"脚本清单"表格**，"支持平台"列如实填写
 6. **如果有产物** → 写到 `dist/`，并加进 `make clean`
+7. **同步到 Pages 站点**：如果工具有 `README.md`，按上面"Pages 站点"段落把它注册进 `scripts/sync-docs.sh` 并跑 `make sync-docs`
 
 > 命名规则：目录名用 `kebab-case`；脚本文件名用 `小写_下划线.sh` 或 `kebab-case.ts/.ps1`；Makefile target 用 `kebab-case`。
 

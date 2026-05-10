@@ -1,0 +1,24 @@
+// Tools — Just the Docs custom color scheme
+// 继承 light scheme，覆盖关键色为 #ce4040 (与原 Pages 视觉一致)
+
+@import "./light";
+
+// 主色：链接 / 按钮 / 选中态
+$link-color: #ce4040;
+$btn-primary-color: #ce4040;
+$base-button-color: #ce4040;
+
+// 正文色
+$body-text-color: #2f2c33;
+$body-heading-color: #1a1a1a;
+
+// sidebar 选中项强化
+.site-nav .nav-list-item.active > .nav-list-link {
+  color: #ce4040;
+  font-weight: 500;
+}
+
+// 链接 hover 加深
+a:hover {
+  color: #b53636;
+}
