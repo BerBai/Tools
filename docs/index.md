@@ -12,7 +12,7 @@ permalink: /
 {: .fs-6 .fw-300 }
 
 [查看 GitHub 仓库](https://github.com/BerBai/Tools){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 .mr-2 }
-[立即使用 weibo-finder](/weibo-finder/){: .btn .fs-5 .mb-4 .mb-md-0 }
+[立即使用 weibo-finder](/weibo-finder/){: .btn .btn-primary .fs-5 .mb-4 .mb-md-0 }
 
 ---
 
