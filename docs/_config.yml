@@ -16,7 +16,7 @@ aux_links:
 aux_links_new_tab: true
 
 # 自定义页脚
-footer_content: 'Source-available · MIT-style · maintained by <a href="https://github.com/BerBai" target="_blank">@BerBai</a>'
+footer_content: 'Source-available · MIT-style · maintained by Jason'
 
 # Jekyll 插件 (GH Pages 白名单)
 plugins:
