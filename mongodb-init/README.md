@@ -1,0 +1,61 @@
+# mongodb-init
+
+> vendored from [BerBai/recode](https://github.com/BerBai/recode) @ 2f6f57f
+
+MongoDB 的 SysV `init.d` 风格管理脚本（含 `chkconfig` 头 + LSB `BEGIN INIT INFO` 块），用于把 MongoDB 注册成系统服务。典型部署：放到 `/etc/init.d/mongodb` + `chkconfig --add mongodb`（CentOS 6/7）或 `update-rc.d mongodb defaults`（Debian 系）。
+
+支持 5 个子命令：`start | stop | restart | status | repair`。
+
+## 使用前必改
+
+脚本顶部三个变量按你机器实际路径改：
+
+```bash
+MONGO_PATH=/www/server/mongodb               # MongoDB 安装根目录（要存在 $MONGO_PATH/bin/mongod）
+Config=/www/server/mongodb/config.conf       # mongod 配置文件
+User=root                                    # 启动用户（脚本用 sudo -u $User mongod ... 起进程）
+```
+
+> 脚本起头会做 `if [ ! -f $MONGO_PATH/bin/mongod ]; then echo "No installation of mognodb."; exit; fi` 检测，路径不对会立刻退出（注意 typo "mognodb" 是上游原文，未修改）。
+
+脚本里有一段被注释掉的 "从文件名解析端口" 逻辑（`# mongodbPort=...`），用于 `mongodb_27017.sh` / `mongodb_27018.sh` 这种多实例命名约定，需要可以解开。
+
+## 用法
+
+```bash
+# 直接调用
+./mongodb.sh start
+./mongodb.sh stop
+./mongodb.sh restart
+./mongodb.sh status
+./mongodb.sh repair    # 修复，会先确认是否在 dbPath 下删 mongod.lock + storage.bson 再 --repair
+
+# 注册成 init 服务（CentOS 系）
+sudo cp mongodb.sh /etc/init.d/mongodb
+sudo chmod +x /etc/init.d/mongodb
+sudo chkconfig --add mongodb
+sudo chkconfig mongodb on
+sudo service mongodb start
+```
+
+`status` 通过 `ps aux | grep '/www/server/mongodb' | grep $Config` 判断进程，多实例同机部署时 `$Config` 路径必须互不相同才能区分。
+
+## 注意事项
+
+- `start` 需要 `sudo` 权限（脚本里就是 `sudo -u $User mongod -f $Config`）。
+- `repair` 是**交互式**的（会 `read ensureDbPath` 让你输 `y/n`），不能直接放在自动化流水线里。
+- `repair` 会 `rm -rf $dbPath/mongod.lock` 和 `rm -rf $dbPath/storage.bson`，**确认 `$Config` 里的 `dbPath` 正确再用**，删错路径数据就没了。
+- `chkconfig` 头是 CentOS 6 / RHEL 6 时代的产物，systemd 时代更推荐写 `mongod.service` unit；这个脚本作为 "我就要 init 风格" 的兼容方案保留。
+- 脚本里 typo（"mognodb"）和路径硬编码 **本仓库不修改**（原样 vendor），需要改请回上游 [BerBai/recode](https://github.com/BerBai/recode) 提 PR。
+
+## 依赖
+
+| 工具 | 用途 |
+|------|------|
+| `bash` | 运行脚本 |
+| `mongod` | MongoDB server 二进制（目标服务器需要，本地无需安装） |
+| `sudo` | 切换到 `$User` 启动 mongod |
+
+## 来源
+
+vendor 自 [BerBai/recode](https://github.com/BerBai/recode) 仓库的 `script/mongodb.sh`，详见 `UPSTREAM.md`。
