@@ -81,6 +81,11 @@ TARBALLS_DIR="$STAGE_DIR/tarballs"
 RESOLVE_DIR="$WORK_DIR/resolve"
 mkdir -p "$TARBALLS_DIR" "$RESOLVE_DIR"
 
+# Sweep any AppleDouble residue left by a prior unpatched run. `._*` files in
+# the persistent STAGE_DIR would otherwise end up in the new tarball and get
+# mistaken for real `.tgz` tarballs by the offline install.sh.
+find "$STAGE_DIR" -type f -name '._*' -delete 2>/dev/null || true
+
 # Detect curl capabilities once. --retry-all-errors landed in curl 7.71.
 CURL_RETRY_ARGS=(--retry 5 --retry-delay 2 --retry-connrefused)
 if curl --help all 2>/dev/null | grep -q -- '--retry-all-errors'; then
@@ -207,6 +212,11 @@ JSON
 else
   rm -rf "$VERDACCIO_BOOTSTRAP_DIR"
 fi
+
+# Re-sweep after verdaccio bootstrap: if npm unpacked a tarball that itself
+# contained AppleDouble entries, real `._*` files would land in
+# verdaccio-bootstrap/node_modules/. Cheap to repeat; finds nothing on Linux.
+find "$STAGE_DIR" -type f -name '._*' -delete 2>/dev/null || true
 
 # Step 4: write the offline install.sh.
 cat > "$STAGE_DIR/install.sh" <<'INSTALL_EOF'
@@ -347,7 +357,15 @@ failed=0
 TARBALL_LIST="$HERE/.tarballs.list"
 PUBLISH_LOG="$HERE/.publish.log"
 : >"$PUBLISH_LOG"
-find "$TARBALLS_DIR" -type f -name '*.tgz' >"$TARBALL_LIST"
+# Exclude AppleDouble `._*` files: a stale macOS-packed bundle (or one packed
+# by an unpatched npm_offline_install.sh) may contain `._foo.tgz` shadow files
+# that look like tarballs to find(1) but are not valid gzip and would cause
+# `npm publish` to fail with EINVALIDTARBALL.
+find "$TARBALLS_DIR" -type f -name '*.tgz' ! -name '._*' >"$TARBALL_LIST"
+appledouble_skipped=$(find "$TARBALLS_DIR" -type f -name '._*.tgz' 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$appledouble_skipped" -gt 0 ]]; then
+  echo ">> Filtered out $appledouble_skipped AppleDouble file(s) (._*.tgz) from publish queue"
+fi
 while IFS= read -r tgz; do
   [[ -n "$tgz" ]] || continue
   short="${tgz#"$TARBALLS_DIR/"}"
@@ -532,9 +550,14 @@ NODE
 
 # Step 6: tar it up. Build to a temp file first because the output file lives
 # in the same directory as STAGE_DIR and tar would otherwise see itself.
+# AppleDouble suppression: COPYFILE_DISABLE=1 tells macOS BSD tar not to
+# serialize xattr/resource-fork into `._*` entries; --exclude='._*' is a
+# belt-and-suspenders guard against any pre-existing `._*` files that slipped
+# into STAGE_DIR. Both are inert on Linux (GNU tar ignores the env var, and
+# `--exclude` matches zero files).
 OUT_FILE="$OUTPUT_DIR_ABS/$BUNDLE_NAME.tar.gz"
 TMP_TAR="$WORK_DIR/$BUNDLE_NAME.tar.gz"
-( cd "$OUTPUT_DIR_ABS" && tar -czf "$TMP_TAR" "$BUNDLE_NAME" )
+( cd "$OUTPUT_DIR_ABS" && COPYFILE_DISABLE=1 tar --exclude='._*' -czf "$TMP_TAR" "$BUNDLE_NAME" )
 mv "$TMP_TAR" "$OUT_FILE"
 
 BUNDLE_BYTES="$(wc -c <"$OUT_FILE" | tr -d ' ')"
