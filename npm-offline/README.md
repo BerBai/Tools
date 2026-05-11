@@ -63,6 +63,9 @@ Options:
   -n, --name NAME      Bundle name (default: npm-offline-bundle)
   -r, --registry URL   Source registry (default: https://registry.npmjs.org)
       --no-verdaccio   Do not bundle a verdaccio runtime
+      --target-os OS   Target host OS (linux/darwin/win32/...). Default: host
+      --target-cpu CPU Target CPU (x64/arm64/ia32/...). Default: host
+      --target-libc L  Target libc (glibc/musl). Default: host
   -h, --help           Show this help
 ```
 
@@ -78,6 +81,40 @@ Options:
 **断点续传**：`dist/npm-offline-bundle/tarballs/` 是持久目录，重跑同一命令时已下完的 tarball 直接命中缓存（输出 `[i/N] cache xxx`）。中断后只需重跑同一行即可继续。
 
 **关于 `--no-verdaccio`**：默认会在 bundle 里嵌一份 verdaccio（约 +30MB），离线机零依赖。如果离线机已经全局装了 verdaccio，`--no-verdaccio` 能让产物更小。
+
+### 跨平台打包（在 mac 上为 linux 打 bundle）
+
+很多 npm 包（如 `@anthropic-ai/claude-code`、`esbuild`、`@biomejs/biome`、`turbo`、`@swc/core`）通过 **`optionalDependencies` 分发平台 native binary**：每个平台一个独立子包（`pkg-linux-x64`、`pkg-darwin-arm64`...），主包用 postinstall 脚本根据 `process.platform` / `process.arch` 挑选。
+
+默认情况下脚本不传 `--os/--cpu/--libc` 给 npm，lockfile 会把**所有平台**的 optional dep 都解出来，bundle 因此膨胀到几百 MB（每平台 50–80MB 不止）。要瘦身或避免跨 npm 版本的行为漂移，用 `--target-*` 显式指定目标主机：
+
+```bash
+# mac 上为 linux x86_64 打 claude-code（最常见场景）
+./npm-offline/npm_offline_install.sh --target-os linux --target-cpu x64 @anthropic-ai/claude-code
+
+# 配合 Makefile
+make npm-bundle PKG=@anthropic-ai/claude-code TARGET_OS=linux TARGET_CPU=x64
+
+# Alpine / musl 目标
+make npm-bundle PKG=@anthropic-ai/claude-code TARGET_OS=linux TARGET_CPU=x64 TARGET_LIBC=musl
+
+# linux arm64（aarch64 / Graviton / 树莓派 64）
+make npm-bundle PKG=@anthropic-ai/claude-code TARGET_OS=linux TARGET_CPU=arm64
+```
+
+| 选项 | 取值 |
+|------|------|
+| `--target-os`   | `linux` / `darwin` / `win32` / `freebsd` / `openbsd` / `aix` / `sunos` / `android` |
+| `--target-cpu`  | `x64` / `arm64` / `ia32` / `arm` / `ppc64` / `s390x` / `mips` / `mipsel` / `riscv64` / `loong64` |
+| `--target-libc` | `glibc`（默认 Linux 发行版）/ `musl`（Alpine 系） |
+
+**注意事项**：
+- 一次打包**只支持一个目标平台**。要给多平台分发请多跑几次（每个平台一个 bundle）。
+- 校验是 warning 级别 —— 未知值仍会透传给 npm，由 npm 决定接不接受。这样未来新平台不会被脚本卡住。
+- 不传 `--target-*` 时行为不变（lockfile 自然包含全平台）。如果你只装一个没有 native binary 的纯 JS 包（比如 `lodash`），加不加 flag 都没区别。
+- bundle 里的 `bundle.env` 会记录 `BUNDLE_TARGET_OS / CPU / LIBC` 三个字段，便于排错。
+- **`--target-libc` 精度依赖上游 package.json 是否标注**。如 `@anthropic-ai/claude-code` 把 `linux-x64` 和 `linux-x64-musl` 拆成两个独立 optional dep 但**都没写 `libc` 字段**，因此 `--target-libc musl` 会把两个 linux-x64 变体都保留（postinstall 在目标机上自己挑）。`@swc/core` 等规范标注 `libc` 的包过滤会精确。glibc 目标基本不需要传 `--target-libc`。
+- 已知的 native-binary 主流包：`@anthropic-ai/claude-code`、`esbuild`、`@biomejs/biome`、`@swc/core`、`lightningcss`、`turbo`、`@parcel/watcher`、`rollup`、`vite` 的一些 plugin、`sharp` 等。
 
 ### 安装阶段（离线机）
 
@@ -131,7 +168,20 @@ npm-offline-bundle/
 
 ```bash
 # Original user input: react@18
+BUNDLE_TARGET_OS=
+BUNDLE_TARGET_CPU=
+BUNDLE_TARGET_LIBC=
 BUNDLE_PKGS=(react@18.3.1)
+```
+
+加 `--target-*` 后：
+
+```bash
+# Original user input: @anthropic-ai/claude-code
+BUNDLE_TARGET_OS=linux
+BUNDLE_TARGET_CPU=x64
+BUNDLE_TARGET_LIBC=
+BUNDLE_PKGS=(@anthropic-ai/claude-code@2.1.138)
 ```
 
 ## 环境变量
@@ -231,7 +281,13 @@ Verdaccio: bundled
 **`./install.sh` 执行后报 "Syntax error: ... unexpected"**
 被 `sh install.sh` 而不是 `bash install.sh` 调用。脚本头部已有自愈分支会 `exec bash`，如果还是报错说明系统 bash 版本太老（< 4），换台机器或 `apt install bash`。
 
-**npm 求解很慢 / 偶尔 hang**
+**离线机装完报 `Error: <pkg> native binary not installed. reinstall without --ignore-scripts / --omit=optional`**
+说明该包的平台 native binary 子包没装上。常见原因：
+1. 在 mac 上打 bundle 给 linux 用，但跨 npm 版本 lockfile 行为漂移导致 linux 那个 optional dep 没进 bundle → **改用 `--target-os linux --target-cpu x64`（或对应平台）重新打包**，详见上面"跨平台打包"章节。
+2. 离线机 `install.sh --install` 之后用户**自己又跑了一次** `npm install --ignore-scripts` 或 `--omit=optional` → 直接重新装一次：`npm install --registry=http://localhost:4873 <pkg>`（不加这两个 flag）。
+3. 目标是 Alpine（musl libc）但打包时没加 `--target-libc musl` → 加上重打。
+
+**`npm 求解很慢 / 偶尔 hang`**
 正常现象。`npm install --package-lock-only --legacy-peer-deps` 在大依赖图（如 `@babel/preset-env`）上会跑几十秒到几分钟，期间无输出。耐心等。
 
 **macOS 打的 bundle 在 Linux 解开时出现 `._*` 文件 / `tar: Ignoring unknown extended header keyword` warning / `install.sh` 报 `._*.tgz` FAIL**

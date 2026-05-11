@@ -10,11 +10,14 @@
 SHELL := /usr/bin/env bash
 
 # ---- 可覆盖参数 ----
-PKG       ?= lodash@4
-UPSTREAM  ?= https://YOUR_ANYROUTER_UPSTREAM
-PORT      ?= 5000
-PROXY_LOG ?= /tmp/anyrouter-proxy.log
-PROXY_PID ?= /tmp/anyrouter-proxy.pid
+PKG         ?= lodash@4
+TARGET_OS   ?=
+TARGET_CPU  ?=
+TARGET_LIBC ?=
+UPSTREAM    ?= https://YOUR_ANYROUTER_UPSTREAM
+PORT        ?= 5000
+PROXY_LOG   ?= /tmp/anyrouter-proxy.log
+PROXY_PID   ?= /tmp/anyrouter-proxy.pid
 
 .DEFAULT_GOAL := help
 
@@ -32,11 +35,15 @@ help: ## 列出所有可用命令
 	@echo ""
 	@echo "可覆盖变量："
 	@echo "  PKG=<name@ver>      npm-bundle 打包的目标包（默认: $(PKG)）"
+	@echo "  TARGET_OS=<os>      npm-bundle 目标 OS（linux/darwin/win32，默认: host）"
+	@echo "  TARGET_CPU=<cpu>    npm-bundle 目标 CPU（x64/arm64，默认: host）"
+	@echo "  TARGET_LIBC=<libc>  npm-bundle 目标 libc（glibc/musl，默认: host）"
 	@echo "  UPSTREAM=<url>      proxy 上游地址（默认: $(UPSTREAM)）"
 	@echo "  PORT=<n>            proxy 监听端口（默认: $(PORT)）"
 	@echo ""
 	@echo "示例："
 	@echo "  make npm-bundle PKG=lodash@4"
+	@echo "  make npm-bundle PKG=@anthropic-ai/claude-code TARGET_OS=linux TARGET_CPU=x64"
 	@echo "  make proxy PORT=5001"
 	@echo ""
 
@@ -91,7 +98,11 @@ proxy-status: ## 查看代理是否在跑
 
 .PHONY: npm-bundle
 npm-bundle: ## 制作 npm 离线安装包（PKG=...）
-	./npm-offline/npm_offline_install.sh $(PKG)
+	./npm-offline/npm_offline_install.sh \
+	  $(if $(TARGET_OS),--target-os $(TARGET_OS)) \
+	  $(if $(TARGET_CPU),--target-cpu $(TARGET_CPU)) \
+	  $(if $(TARGET_LIBC),--target-libc $(TARGET_LIBC)) \
+	  $(PKG)
 
 # ============================================================
 # 维护

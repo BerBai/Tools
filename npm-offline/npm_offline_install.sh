@@ -28,12 +28,19 @@ Options:
   -r, --registry URL   Source registry (default: https://registry.npmjs.org)
       --no-verdaccio   Do not bundle a verdaccio runtime (default: bundle it,
                        so install.sh works on hosts without verdaccio installed)
+      --target-os OS   Target host OS for optional-dep resolution.
+                       Examples: linux, darwin, win32, freebsd. Default: host.
+      --target-cpu CPU Target host CPU arch. Examples: x64, arm64, ia32, arm.
+                       Default: host.
+      --target-libc L  Target host libc (glibc/musl). Useful for Alpine targets.
+                       Default: host.
   -h, --help           Show this help
 
 Examples:
   ./npm_offline_install.sh lodash
   ./npm_offline_install.sh react@18 react-dom@18
   ./npm_offline_install.sh -n my-bundle -o /tmp/out @babel/core express
+  ./npm_offline_install.sh --target-os linux --target-cpu x64 @anthropic-ai/claude-code
 EOF
 }
 
@@ -41,6 +48,9 @@ OUTPUT_DIR="./dist"
 BUNDLE_NAME="npm-offline-bundle"
 REGISTRY="https://registry.npmjs.org"
 BUNDLE_VERDACCIO=1
+TARGET_OS=""
+TARGET_CPU=""
+TARGET_LIBC=""
 PKGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -49,6 +59,9 @@ while [[ $# -gt 0 ]]; do
     -n|--name)      BUNDLE_NAME="$2"; shift 2 ;;
     -r|--registry)  REGISTRY="$2"; shift 2 ;;
     --no-verdaccio) BUNDLE_VERDACCIO=0; shift ;;
+    --target-os)    TARGET_OS="$2"; shift 2 ;;
+    --target-cpu)   TARGET_CPU="$2"; shift 2 ;;
+    --target-libc)  TARGET_LIBC="$2"; shift 2 ;;
     -h|--help)      usage; exit 0 ;;
     --)             shift; while [[ $# -gt 0 ]]; do PKGS+=("$1"); shift; done ;;
     -*)             echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
@@ -61,6 +74,31 @@ if [[ ${#PKGS[@]} -eq 0 ]]; then
   usage >&2
   exit 2
 fi
+
+# Validate target flags against npm's known platforms. Unknown values still
+# pass through (npm itself will reject anything truly invalid), but we warn
+# loudly because a typo here silently produces a useless bundle.
+validate_target() {
+  local kind="$1" value="$2" whitelist="$3"
+  [[ -z "$value" ]] && return 0
+  case " $whitelist " in
+    *" $value "*) return 0 ;;
+    *)
+      echo "Warning: $kind='$value' not in known list ($whitelist); passing through to npm anyway." >&2
+      ;;
+  esac
+}
+validate_target "--target-os"   "$TARGET_OS"   "linux darwin win32 freebsd openbsd aix sunos android"
+validate_target "--target-cpu"  "$TARGET_CPU"  "x64 arm64 ia32 arm ppc64 s390x mips mipsel riscv64 loong64"
+validate_target "--target-libc" "$TARGET_LIBC" "glibc musl"
+
+# Forward target flags to npm install --package-lock-only so the lockfile
+# resolves optional deps for the target host instead of the build host.
+# Keeps the bundle small (only one platform's native binaries) and predictable.
+NPM_TARGET_ARGS=()
+[[ -n "$TARGET_OS"   ]] && NPM_TARGET_ARGS+=("--os=$TARGET_OS")
+[[ -n "$TARGET_CPU"  ]] && NPM_TARGET_ARGS+=("--cpu=$TARGET_CPU")
+[[ -n "$TARGET_LIBC" ]] && NPM_TARGET_ARGS+=("--libc=$TARGET_LIBC")
 
 for cmd in node npm curl tar; do
   if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -102,6 +140,9 @@ cat > "$RESOLVE_DIR/package.json" <<'JSON'
 JSON
 
 echo ">> Resolving dependency tree for: ${PKGS[*]}"
+if [[ ${#NPM_TARGET_ARGS[@]} -gt 0 ]]; then
+  echo ">> Target host:  ${NPM_TARGET_ARGS[*]}"
+fi
 (
   cd "$RESOLVE_DIR"
   npm install \
@@ -109,20 +150,51 @@ echo ">> Resolving dependency tree for: ${PKGS[*]}"
     --package-lock-only \
     --legacy-peer-deps \
     --no-audit --no-fund --silent \
+    ${NPM_TARGET_ARGS[@]+"${NPM_TARGET_ARGS[@]}"} \
     "${PKGS[@]}"
 )
 
 # Step 2: extract every resolved http(s) tarball URL from the lockfile.
+# Filter optional deps by --target-{os,cpu,libc} when set: npm's --os/--cpu/
+# --libc flags are honored for `npm install`, but `--package-lock-only` still
+# records every optional variant in the lockfile (verified npm 11.3). So we
+# do the filtering ourselves here, against the os/cpu/libc fields npm already
+# stamps onto each optional entry.
 echo ">> Extracting tarball URLs"
-node - "$RESOLVE_DIR/package-lock.json" >"$WORK_DIR/urls.txt" <<'NODE'
+node - "$RESOLVE_DIR/package-lock.json" "$TARGET_OS" "$TARGET_CPU" "$TARGET_LIBC" >"$WORK_DIR/urls.txt" <<'NODE'
 const fs = require('fs');
 const lock = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const targetOs   = process.argv[3] || '';
+const targetCpu  = process.argv[4] || '';
+const targetLibc = process.argv[5] || '';
+
+function matchesTarget(info) {
+  // Non-optional packages are always required regardless of platform.
+  if (!info.optional) return true;
+  // No filter set → keep everything (preserves prior behavior).
+  if (!targetOs && !targetCpu && !targetLibc) return true;
+  // npm stores os/cpu/libc as arrays (e.g. ["linux"]). An entry without the
+  // field means "any" for that dimension, so don't filter on absent fields.
+  if (targetOs   && Array.isArray(info.os)   && !info.os.includes(targetOs))     return false;
+  if (targetCpu  && Array.isArray(info.cpu)  && !info.cpu.includes(targetCpu))   return false;
+  if (targetLibc && Array.isArray(info.libc) && !info.libc.includes(targetLibc)) return false;
+  return true;
+}
+
 const urls = new Set();
+let kept = 0, skipped = 0;
 for (const [path, info] of Object.entries(lock.packages || {})) {
   if (path === '') continue;
-  if (info && typeof info.resolved === 'string' && /^https?:\/\//.test(info.resolved)) {
+  if (!info || typeof info.resolved !== 'string' || !/^https?:\/\//.test(info.resolved)) continue;
+  if (matchesTarget(info)) {
     urls.add(info.resolved);
+    kept++;
+  } else {
+    skipped++;
   }
+}
+if (skipped > 0) {
+  process.stderr.write(`>> Filtered ${skipped} optional dep(s) not matching target (kept ${kept})\n`);
 }
 for (const u of urls) console.log(u);
 NODE
@@ -500,6 +572,9 @@ NODE
 )"
 {
   echo "# Original user input: ${PKGS[*]}"
+  echo "BUNDLE_TARGET_OS=${TARGET_OS:-}"
+  echo "BUNDLE_TARGET_CPU=${TARGET_CPU:-}"
+  echo "BUNDLE_TARGET_LIBC=${TARGET_LIBC:-}"
   printf 'BUNDLE_PKGS=('
   while IFS= read -r p; do
     [[ -n "$p" ]] || continue
@@ -515,6 +590,11 @@ NODE
   echo "Built: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo "Source registry: $REGISTRY"
   echo "Requested packages: ${PKGS[*]}"
+  if [[ -n "$TARGET_OS$TARGET_CPU$TARGET_LIBC" ]]; then
+    echo "Target host: os=${TARGET_OS:-host} cpu=${TARGET_CPU:-host} libc=${TARGET_LIBC:-host}"
+  else
+    echo "Target host: host (no --target-* flags; lockfile keeps every platform's optional deps)"
+  fi
   echo "Tarballs: $URL_COUNT"
   if [[ "$BUNDLE_VERDACCIO" -eq 1 ]]; then
     echo "Bundled verdaccio: yes"
@@ -567,6 +647,9 @@ echo "Bundle:    $OUT_FILE"
 echo "Size:      $BUNDLE_BYTES bytes"
 echo "Tarballs:  $URL_COUNT"
 echo "Packages:  ${PKGS[*]}"
+if [[ -n "$TARGET_OS$TARGET_CPU$TARGET_LIBC" ]]; then
+  echo "Target:    os=${TARGET_OS:-host} cpu=${TARGET_CPU:-host} libc=${TARGET_LIBC:-host}"
+fi
 if [[ "$BUNDLE_VERDACCIO" -eq 1 ]]; then
   echo "Verdaccio: bundled"
 else
