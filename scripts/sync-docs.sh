@@ -43,7 +43,12 @@ sync_one() {
 }
 
 echo "Syncing READMEs to docs/..."
-sync_one "claude-notify" 1 "Claude Code 任务完成 / 需审批通知 hook"
-sync_one "newapi"        2 "anyrouter 本地代理"
-sync_one "npm-offline"   3 "npm 离线包打包脚本"
+sync_one "claude-notify"   1 "Claude Code 任务完成 / 需审批通知 hook"
+sync_one "newapi"          2 "anyrouter 本地代理"
+sync_one "npm-offline"     3 "npm 离线包打包脚本"
+sync_one "wmk"             4 "图片 / PDF 水印工具(vendored from BerBai/WMK, GPL-2.0)"
+sync_one "jar-runner"      5 "Linux 上 Java jar 进程生命周期管理(start/stop/status/backup)"
+sync_one "jar-docker"      6 "jar / war 一键打 Docker 镜像并运行"
+sync_one "mongodb-init"    7 "MongoDB SysV init.d 风格管理脚本"
+sync_one "service-monitor" 8 "服务存活监控 + 自愈(tomcat / jar 多实例)"
 echo "✓ docs/ synced"

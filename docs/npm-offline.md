@@ -242,6 +242,9 @@ Verdaccio: bundled
 **npm 求解很慢 / 偶尔 hang**
 正常现象。`npm install --package-lock-only --legacy-peer-deps` 在大依赖图（如 `@babel/preset-env`）上会跑几十秒到几分钟，期间无输出。耐心等。
 
+**macOS 打的 bundle 在 Linux 解开时出现 `._*` 文件 / `tar: Ignoring unknown extended header keyword` warning / `install.sh` 报 `._*.tgz` FAIL**
+打包脚本已对 macOS AppleDouble 元数据做了三层抑制（`COPYFILE_DISABLE=1` + `tar --exclude='._*'` + 离线侧 `find ! -name '._*'`）。如果还看到，说明用的是未 patched 的旧脚本 — 重新 `git pull` 后再打。
+
 ## FAQ
 
 **Q：为什么不直接拷 `~/.npm/_cacache`？**
