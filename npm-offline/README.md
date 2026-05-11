@@ -269,6 +269,9 @@ Verdaccio: bundled
 - `EPUBLISHCONFLICT` / `cannot publish over` / `already exists` 是**正常的**，脚本会归类到 `skipped`，表示该版本之前已发布到本地 verdaccio。
 - 如果是其他错误，看 bundle 目录下的 `.publish.log`。
 
+**`npm publish` 报 `413 Payload Too Large` / `request entity too large`**
+verdaccio 默认 `max_body_size: 10mb`，超过 10MB 的 tarball（典型场景：带 native binary 的包，如 `@anthropic-ai/claude-code-linux-x64-*.tgz` ~60MB、`esbuild-*-*.tgz`、`@swc/core-*-*.tgz`、`sharp` 等）会被拒收。本工具生成的 `install.sh` 已在 verdaccio config 里写死 `max_body_size: 200mb`，对所有现实中的 npm native-binary 包都够用。**如果你用的是系统 verdaccio（自己的 config 而不是 bundle 自带的）**，需要自己在 `~/.config/verdaccio/config.yaml`（或对应路径）顶层加一行 `max_body_size: 200mb`，否则同样会 413。
+
 **`verdaccio is not installed and this bundle does not contain a bundled runtime.`**
 打包时用了 `--no-verdaccio`，且离线机也没装 verdaccio。两条路：
 1. 重新打包，去掉 `--no-verdaccio`。

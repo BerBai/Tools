@@ -368,6 +368,7 @@ fi
 mkdir -p "$VERDACCIO_HOME"
 cat > "$VERDACCIO_HOME/config.yaml" <<'YAML'
 storage: ./storage
+max_body_size: 200mb
 auth:
   htpasswd:
     file: ./htpasswd
