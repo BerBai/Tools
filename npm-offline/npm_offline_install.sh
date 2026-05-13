@@ -366,9 +366,33 @@ MSG
 fi
 
 mkdir -p "$VERDACCIO_HOME"
-cat > "$VERDACCIO_HOME/config.yaml" <<'YAML'
+
+# Compute max_body_size for verdaccio. `npm publish` base64-encodes the tarball
+# into a JSON body, inflating ~33% plus metadata envelope. We pick:
+#     max(200mb, ceil(largest_tarball_bytes * 2 / 1MB) mb)
+# The *2 multiplier covers base64 + JSON envelope + comfortable safety margin.
+# `VERDACCIO_MAX_BODY_SIZE` env var overrides everything (e.g. `2gb` for debug).
+if [[ -n "${VERDACCIO_MAX_BODY_SIZE:-}" ]]; then
+  MAX_BODY_SIZE="$VERDACCIO_MAX_BODY_SIZE"
+else
+  max_bytes=0
+  while IFS= read -r tgz; do
+    [[ -n "$tgz" ]] || continue
+    bytes=$(wc -c <"$tgz" | tr -d ' ')
+    if [[ "${bytes:-0}" -gt "$max_bytes" ]]; then
+      max_bytes=$bytes
+    fi
+  done < <(find "$TARBALLS_DIR" -type f -name '*.tgz' ! -name '._*' 2>/dev/null)
+  # ceil(max_bytes * 2 / 1048576)
+  need_mb=$(( (max_bytes * 2 + 1048575) / 1048576 ))
+  if [[ "$need_mb" -lt 200 ]]; then need_mb=200; fi
+  MAX_BODY_SIZE="${need_mb}mb"
+fi
+echo ">> verdaccio max_body_size = $MAX_BODY_SIZE"
+
+cat > "$VERDACCIO_HOME/config.yaml" <<YAML
 storage: ./storage
-max_body_size: 200mb
+max_body_size: $MAX_BODY_SIZE
 auth:
   htpasswd:
     file: ./htpasswd
@@ -376,9 +400,9 @@ auth:
 uplinks: {}
 packages:
   '**':
-    access: $all
-    publish: $all
-    unpublish: $all
+    access: \$all
+    publish: \$all
+    unpublish: \$all
 log:
   type: stdout
   format: pretty
@@ -457,6 +481,9 @@ while IFS= read -r tgz; do
   else
     failed=$((failed + 1))
     echo "  ! FAIL $short"
+    if echo "$out" | grep -qiE '413|request entity too large|payload too large|EPAYLOADTOOLARGE'; then
+      payload_too_large_seen=1
+    fi
     echo "----- npm publish output for $short -----" >>"$PUBLISH_LOG"
     echo "$out" >>"$PUBLISH_LOG"
     echo >>"$PUBLISH_LOG"
@@ -474,6 +501,12 @@ echo "Local registry:  $REGISTRY_URL"
 if [[ "$failed" -gt 0 ]]; then
   echo "Publish log:     $PUBLISH_LOG"
   echo "!! $failed tarball(s) failed to publish — see log above for details."
+  if [[ "${payload_too_large_seen:-0}" -eq 1 ]]; then
+    echo "   Hint: at least one failure looks like a verdaccio 413 / payload-too-large."
+    echo "         Current max_body_size: $MAX_BODY_SIZE."
+    echo "         Retry with a larger limit, e.g.:"
+    echo "           VERDACCIO_MAX_BODY_SIZE=2gb $0"
+  fi
 fi
 
 # Decide install action. Flags > tty prompt > non-tty default skip.
@@ -636,9 +669,14 @@ NODE
 # belt-and-suspenders guard against any pre-existing `._*` files that slipped
 # into STAGE_DIR. Both are inert on Linux (GNU tar ignores the env var, and
 # `--exclude` matches zero files).
+# PAX xattr suppression: --no-xattrs stops bsdtar/libarchive from serializing
+# xattrs (notably `com.apple.provenance` on macOS Ventura+) into PAX extended
+# headers — those produce `Ignoring unknown extended header keyword
+# 'LIBARCHIVE.xattr.*'` warnings on Linux GNU tar at extract time. Both bsdtar
+# 3.5+ and GNU tar accept this flag with the same semantics.
 OUT_FILE="$OUTPUT_DIR_ABS/$BUNDLE_NAME.tar.gz"
 TMP_TAR="$WORK_DIR/$BUNDLE_NAME.tar.gz"
-( cd "$OUTPUT_DIR_ABS" && COPYFILE_DISABLE=1 tar --exclude='._*' -czf "$TMP_TAR" "$BUNDLE_NAME" )
+( cd "$OUTPUT_DIR_ABS" && COPYFILE_DISABLE=1 tar --no-xattrs --exclude='._*' -czf "$TMP_TAR" "$BUNDLE_NAME" )
 mv "$TMP_TAR" "$OUT_FILE"
 
 BUNDLE_BYTES="$(wc -c <"$OUT_FILE" | tr -d ' ')"
